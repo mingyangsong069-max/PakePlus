@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文工作流导航台 · 检索 → 归档 → 精读 → 汇报</title>
+<style>
+/* SECTION: reset-and-tokens */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-2: #fafbfc;
+  --c-ink: #16202c;
+  --c-ink-2: #4a5a6b;
+  --c-ink-3: #8494a5;
+  --c-line: #e3e8ee;
+  --c-line-2: #eef1f5;
+
+  --c-search: #1d4ed8;   /* X-MOL 检索 */
+  --c-shelf: #7c3aed;    /* 书架归档 */
+  --c-read: #0f766e;     /* 小绿鲸精读 */
+  --c-trans: #0e7490;    /* Doclingo 翻译 */
+  --c-report: #d97706;   /* WPS 汇报 */
+
+  --c-ok: #16a34a;
+  --c-danger: #dc2626;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.07);
+  --shadow-2: 0 4px 12px rgba(16,24,40,.08), 0 2px 4px rgba(16,24,40,.04);
+  --shadow-3: 0 18px 48px rgba(16,24,40,.20);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+          "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  line-height: 1.6;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+button { cursor: pointer; border: none; background: none; }
+a { color: inherit; text-decoration: none; }
+ul, ol { list-style: none; }
+svg { display: block; }
+
+.wrap { max-width: 1420px; margin: 0 auto; padding: 0 20px; }
+
+/* SECTION: header */
+.topbar {
+  background: linear-gradient(135deg, #0b1220 0%, #122033 55%, #0d2b2b 100%);
+  color: #fff;
+  padding: 26px 0 22px;
+  position: relative;
+  overflow: hidden;
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(520px 220px at 88% -20%, rgba(15,118,110,.42), transparent 70%),
+    radial-gradient(460px 200px at 8% 120%, rgba(29,78,216,.34), transparent 70%);
+  pointer-events: none;
+}
+.topbar .wrap { position: relative; z-index: 1; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+  width: 46px; height: 46px; border-radius: 13px; flex: none;
+  background: linear-gradient(140deg, #14b8a6, #1d4ed8);
+  display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(20,184,166,.34);
+}
+.brand-mark svg { width: 25px; height: 25px; }
+.brand h1 { font-size: 21px; font-weight: 700; letter-spacing: .3px; line-height: 1.3; }
+.brand p {
+  font-size: 13px; color: rgba(255,255,255,.66); margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.topbar-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+
+.btn-ghost-dark {
+  padding: 9px 15px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,.9);
+  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,255,255,.07);
+  transition: background .16s, border-color .16s, transform .12s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-ghost-dark:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); }
+.btn-ghost-dark:active { transform: translateY(1px); }
+.btn-ghost-dark svg { width: 15px; height: 15px; }
+
+/* SECTION: layout */
+main { padding: 24px 0 64px; }
+.grid-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.card-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--c-line-2);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.card-title { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 700; }
+.card-title .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.card-sub { font-size: 12.5px; color: var(--c-ink-3); font-weight: 400; margin-left: 2px; }
+.card-body { padding: 18px; }
+
+/* SECTION: flow-strip */
+.flow-strip { margin-bottom: 22px; }
+.flow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.flow-step {
+  position: relative;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: 16px 15px 15px;
+  text-align: left;
+  transition: transform .16s, box-shadow .16s, border-color .16s;
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.flow-step::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--step-c);
+}
+.flow-step:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); border-color: var(--step-c); }
+.flow-step:active { transform: translateY(-1px); }
+.step-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.step-ico {
+  width: 36px; height: 36px; border-radius: 10px; flex: none;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--step-c) 12%, #fff);
+  color: var(--step-c);
+}
+.step-ico svg { width: 19px; height: 19px; }
+.step-no { font-size: 11px; font-weight: 700; color: var(--step-c); letter-spacing: .8px; }
+.step-name { font-size: 15px; font-weight: 700; line-height: 1.35; }
+.step-desc { font-size: 12.5px; color: var(--c-ink-2); line-height: 1.55; }
+.step-tool {
+  margin-top: 10px; font-size: 11.5px; font-weight: 700; color: var(--step-c);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.step-tool svg { width: 12px; height: 12px; }
+
+/* SECTION: tool-launcher */
+.tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.tool-card {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  padding: 15px;
+  background: linear-gradient(180deg, var(--c-surface-2), var(--c-surface));
+  display: flex; flex-direction: column; gap: 12px;
+  transition: border-color .16s, box-shadow .16s;
+}
+.tool-card:hover { border-color: color-mix(in srgb, var(--tool-c) 45%, var(--c-line)); box-shadow: var(--shadow-2); }
+.tool-head { display: flex; align-items: center; gap: 11px; }
+.tool-badge {
+  width: 38px; height: 38px; border-radius: 10px; flex: none;
+  display: grid; place-items: center; color: #fff;
+  background: var(--tool-c);
+  font-size: 15px; font-weight: 800; letter-spacing: .3px;
+}
+.tool-name { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.tool-url { font-size: 11.5px; color: var(--c-ink-3); font-family: var(--mono); word-break: break-all; }
+.tool-desc { font-size: 12.5px; color: var(--c-ink-2); line-height: 1.55; }
+.tool-links { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
+.tool-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  font-size: 13px; font-weight: 600;
+  transition: background .15s, border-color .15s, color .15s;
+  text-align: left; width: 100%;
+}
+.tool-link:hover { background: color-mix(in srgb, var(--tool-c) 8%, #fff); border-color: var(--tool-c); color: var(--tool-c); }
+.tool-link svg { width: 14px; height: 14px; flex: none; opacity: .55; }
+.tool-link:hover svg { opacity: 1; }
+.tool-link--main { background: var(--tool-c); border-color: var(--tool-c); color: #fff; }
+.tool-link--main:hover { background: color-mix(in srgb, var(--tool-c) 86%, #000); color: #fff; }
+.tool-link--main svg { opacity: .85; }
+
+/* SECTION: quick-search */
+.qs-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.qs-input-wrap { position: relative; flex: 1 1 260px; min-width: 0; }
+.qs-input-wrap > svg {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  width: 17px; height: 17px; color: var(--c-ink-3); pointer-events: none;
+}
+.input, .select, .textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  transition: border-color .15s, box-shadow .15s;
+  font-size: 14px;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; border-color: var(--c-search);
+  box-shadow: 0 0 0 3px rgba(29,78,216,.13);
+}
+.qs-input-wrap .input { padding-left: 39px; }
+.qs-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 16px; border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 600; white-space: nowrap;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  transition: background .15s, border-color .15s, color .15s, transform .12s, box-shadow .15s;
+}
+.btn svg { width: 15px; height: 15px; flex: none; }
+.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--c-surface-2); border-color: var(--c-ink-3); }
+.btn--primary { background: var(--c-search); border-color: var(--c-search); color: #fff; box-shadow: 0 2px 6px rgba(29,78,216,.24); }
+.btn--primary:hover { background: #1a44bd; border-color: #1a44bd; color: #fff; }
+.btn--teal { background: var(--c-read); border-color: var(--c-read); color: #fff; box-shadow: 0 2px 6px rgba(15,118,110,.22); }
+.btn--teal:hover { background: #0c6259; border-color: #0c6259; color: #fff; }
+.btn--amber { background: var(--c-report); border-color: var(--c-report); color: #fff; box-shadow: 0 2px 6px rgba(217,119,6,.22); }
+.btn--amber:hover { background: #b96405; border-color: #b96405; color: #fff; }
+.btn--danger:hover { background: #fef2f2; border-color: var(--c-danger); color: var(--c-danger); }
+.btn--sm { padding: 7px 11px; font-size: 12.5px; border-radius: 7px; }
+.btn--sm svg { width: 13px; height: 13px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.qs-hint { margin-top: 11px; font-size: 12.5px; color: var(--c-ink-3); display: flex; gap: 7px; align-items: flex-start; }
+.qs-hint svg { width: 14px; height: 14px; flex: none; margin-top: 3px; }
+.qs-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+.chip {
+  padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--c-line); background: var(--c-surface-2); color: var(--c-ink-2);
+  transition: background .14s, border-color .14s, color .14s;
+}
+.chip:hover { background: #eef2ff; border-color: var(--c-search); color: var(--c-search); }
+
+/* SECTION: shelf */
+.stat-row { display: flex; gap: 9px; flex-wrap: wrap; }
+.stat-pill {
+  flex: 1 1 96px; min-width: 96px;
+  border: 1px solid var(--c-line); border-radius: var(--r-md);
+  padding: 10px 12px; background: var(--c-surface-2);
+  cursor: pointer; text-align: left;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.stat-pill:hover { transform: translateY(-1px); border-color: var(--c-ink-3); }
+.stat-pill.is-active { border-color: var(--c-shelf); background: color-mix(in srgb, var(--c-shelf) 7%, #fff); }
+.stat-num { font-size: 20px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--c-shelf); }
+.stat-lab { font-size: 11.5px; color: var(--c-ink-3); font-weight: 600; }
+
+.toolbar { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.toolbar .qs-input-wrap { flex: 1 1 180px; }
+.toolbar .select { width: auto; min-width: 132px; flex: 0 0 auto; padding-right: 30px; }
+
+.paper-list { display: flex; flex-direction: column; gap: 11px; }
+.paper-item {
+  border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-surface); padding: 14px 15px;
+  transition: border-color .15s, box-shadow .15s;
+  position: relative;
+}
+.paper-item:hover { border-color: var(--c-ink-3); box-shadow: var(--shadow-2); }
+.paper-top { display: flex; align-items: flex-start; gap: 11px; }
+.paper-main { flex: 1 1 auto; min-width: 0; }
+/* 题目前序号：flex 布局保证序号与首行对齐，长标题换行时序号不会单独占一行 */
+.paper-title {
+  display: flex; gap: 0.4em;
+  font-size: 15.5px; font-weight: 700; line-height: 1.5; word-break: break-word;
+}
+.paper-num { flex: none; font-variant-numeric: tabular-nums; }
+.paper-title-text { min-width: 0; }
+.paper-authors { font-size: 12.5px; color: var(--c-ink-2); margin-top: 4px; line-height: 1.6; word-break: break-word; }
+.paper-meta { font-size: 12.5px; color: var(--c-ink-2); margin-top: 4px; line-height: 1.55; }
+.paper-meta .sep { color: var(--c-line); margin: 0 6px; }
+.paper-doi { font-family: var(--mono); font-size: 11.5px; color: var(--c-ink-3); word-break: break-all; margin-top: 3px; }
+.paper-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+.tag {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  background: var(--c-line-2); color: var(--c-ink-2); white-space: nowrap;
+}
+.tag--topic { background: color-mix(in srgb, var(--c-shelf) 11%, #fff); color: var(--c-shelf); }
+.tag--status { color: #fff; }
+.tag--clickable {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; cursor: pointer;
+  transition: filter .14s, transform .12s, box-shadow .14s;
+}
+.tag--clickable svg { width: 11px; height: 11px; opacity: .75; }
+.tag--clickable:hover { filter: brightness(1.12); box-shadow: 0 2px 7px rgba(16,24,40,.22); }
+.tag--clickable:hover svg { opacity: 1; }
+.tag--clickable:active { transform: translateY(1px); }
+
+.paper-block { margin-top: 11px; }
+.paper-block-label {
+  display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .6px;
+  color: var(--c-ink-3); text-transform: uppercase; margin-bottom: 3px;
+  padding-left: 8px; border-left: 3px solid var(--c-line);
+}
+.paper-block-text {
+  font-size: 13px; color: var(--c-ink-2); line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word;
+}
+.kw-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.kw-chip {
+  font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
+  background: color-mix(in srgb, var(--c-read) 9%, #fff);
+  color: var(--c-read);
+  border: 1px solid color-mix(in srgb, var(--c-read) 22%, #fff);
+}
+
+/* SECTION: collapsible-details */
+.toggle-btn {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  margin-top: 12px; padding: 8px 12px;
+  border: 1px solid var(--c-line); border-radius: var(--r-sm);
+  background: var(--c-surface-2);
+  font-size: 12.5px; font-weight: 700; color: var(--c-ink-2);
+  text-align: left;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.toggle-btn svg { width: 15px; height: 15px; flex: none; transition: transform .18s; }
+.toggle-btn > span:first-of-type { flex: none; }
+.toggle-hint {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 11.5px; font-weight: 500; color: var(--c-ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: right;
+}
+.toggle-btn:hover { background: #eef2ff; border-color: var(--c-search); color: var(--c-search); }
+.toggle-btn:hover .toggle-hint { color: color-mix(in srgb, var(--c-search) 65%, #fff); }
+.paper-item.is-open .toggle-btn {
+  background: #eef2ff; border-color: color-mix(in srgb, var(--c-search) 40%, #fff);
+  color: var(--c-search);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  border-bottom-color: transparent;
+}
+
+.paper-details {
+  margin-top: 0; padding: 2px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--c-search) 18%, var(--c-line));
+  border-top: none; border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--c-surface-2);
+}
+.paper-details .paper-block:first-child { margin-top: 10px; }
+
+.paper-note {
+  margin-top: 10px; padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--c-surface-2); border-left: 3px solid var(--c-line);
+  font-size: 12.5px; color: var(--c-ink-2); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+}
+.paper-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--c-line); }
+
+.empty {
+  text-align: center; padding: 42px 20px; color: var(--c-ink-3);
+  border: 1.5px dashed var(--c-line); border-radius: var(--r-md); background: var(--c-surface-2);
+}
+.empty svg { width: 40px; height: 40px; margin: 0 auto 12px; opacity: .38; }
+.empty h4 { font-size: 15px; font-weight: 700; color: var(--c-ink-2); margin-bottom: 5px; }
+.empty p { font-size: 13px; line-height: 1.65; max-width: 380px; margin: 0 auto; }
+.empty .btn { margin-top: 15px; }
+
+/* SECTION: modal */
+.overlay {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(11,18,32,.55);
+  backdrop-filter: blur(3px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 40px 18px; overflow-y: auto;
+}
+.overlay.is-open { display: flex; }
+.modal {
+  width: 100%; max-width: 620px;
+  background: var(--c-surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  animation: pop .18s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+.modal-head {
+  padding: 17px 20px; border-bottom: 1px solid var(--c-line-2);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.modal-head h3 { font-size: 16.5px; font-weight: 700; }
+.modal-close {
+  width: 31px; height: 31px; border-radius: 8px; display: grid; place-items: center;
+  color: var(--c-ink-3); transition: background .14s, color .14s; flex: none;
+}
+.modal-close:hover { background: var(--c-line-2); color: var(--c-ink); }
+.modal-close svg { width: 17px; height: 17px; }
+.modal-body { padding: 20px; }
+.modal-foot {
+  padding: 15px 20px; border-top: 1px solid var(--c-line-2);
+  display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; background: var(--c-surface-2);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field--full { grid-column: 1 / -1; }
+.field label { font-size: 12.5px; font-weight: 700; color: var(--c-ink-2); display: flex; align-items: center; gap: 5px; }
+.field label .req { color: var(--c-danger); }
+.field .tip { font-size: 11.5px; color: var(--c-ink-3); font-weight: 400; }
+.field .textarea { resize: vertical; min-height: 62px; line-height: 1.6; }
+.field-group-title {
+  grid-column: 1 / -1;
+  font-size: 11.5px; font-weight: 800; color: var(--c-ink-3); letter-spacing: .7px;
+  text-transform: uppercase; padding-top: 5px; margin-top: 3px;
+  border-top: 1px solid var(--c-line-2);
+}
+.field-group-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.field-error { font-size: 11.5px; color: var(--c-danger); display: none; }
+.field.has-error .input, .field.has-error .textarea { border-color: var(--c-danger); }
+.field.has-error .field-error { display: block; }
+
+.status-picker { display: flex; gap: 7px; flex-wrap: wrap; }
+.status-opt {
+  padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  border: 1.5px solid var(--c-line); background: var(--c-surface); color: var(--c-ink-2);
+  transition: all .14s;
+}
+.status-opt:hover { border-color: var(--c-ink-3); }
+.status-opt.is-on { color: #fff; border-color: var(--st-c); background: var(--st-c); }
+
+/* SECTION: toast */
+.toast-zone {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 120; display: flex; flex-direction: column; gap: 9px; align-items: center;
+  pointer-events: none; width: calc(100% - 32px); max-width: 430px;
+}
+.toast {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px; border-radius: 999px;
+  background: #101823; color: #fff;
+  font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 10px 30px rgba(16,24,40,.34);
+  animation: rise .2s ease-out;
+  max-width: 100%;
+}
+.toast svg { width: 16px; height: 16px; flex: none; }
+.toast--ok svg { color: #4ade80; }
+.toast--warn svg { color: #fbbf24; }
+.toast--err svg { color: #f87171; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.toast.is-out { animation: fall .2s ease-in forwards; }
+@keyframes fall { to { opacity: 0; transform: translateY(10px); } }
+
+/* SECTION: confirm-dialog */
+.confirm-box { max-width: 400px; }
+.confirm-body { padding: 22px 20px; }
+.confirm-body p { font-size: 14px; color: var(--c-ink-2); line-height: 1.65; }
+.confirm-body strong { color: var(--c-ink); }
+
+/* SECTION: footer */
+.footnote {
+  margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--c-line);
+  font-size: 12px; color: var(--c-ink-3); line-height: 1.7; text-align: center;
+}
+
+/* SECTION: responsive */
+@media (max-width: 1180px) {
+  .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .flow-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  body { font-size: 14.5px; }
+  .wrap { padding: 0 14px; }
+  .topbar { padding: 20px 0 18px; }
+  .brand h1 { font-size: 18px; }
+  .flow-steps { grid-template-columns: minmax(0, 1fr); }
+  .tool-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .card-body { padding: 14px; }
+  .card-head { padding: 14px; }
+  .overlay { padding: 16px 10px; }
+  .stat-pill { flex: 1 1 44%; min-width: 0; }
+  .btn { flex: 1 1 auto; }
+  .paper-actions .btn { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- SECTION: header -->
+<header class="topbar">
+  <div class="wrap topbar-row">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      </div>
+      <div>
+        <h1>论文工作流导航台</h1>
+        <p>X-MOL 检索文献 → 收进书架 → 小绿鲸精读分析 → WPS 做组会汇报</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button type="button" class="btn-ghost-dark" id="btn-export" title="导出为 JSON 文件备份">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出备份
+      </button>
+      <button type="button" class="btn-ghost-dark" id="btn-import" title="从 JSON 文件恢复">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        导入
+      </button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- SECTION: flow-strip -->
+    <section class="flow-strip" aria-label="工作流动线">
+      <div class="flow-steps" id="flow-steps"></div>
+    </section>
+
+    <div class="grid-main">
+      <div style="display:flex;flex-direction:column;gap:22px;min-width:0;">
+
+        <!-- SECTION: tool-launcher -->
+        <section class="card" aria-labelledby="t-tool">
+          <div class="card-head">
+            <h2 class="card-title" id="t-tool">
+              <span class="dot" style="background:var(--c-search)"></span>
+              工具入口<span class="card-sub">点一下直接开新标签页</span>
+            </h2>
+          </div>
+          <div class="card-body">
+            <div class="tool-grid" id="tool-grid"></div>
+          </div>
+        </section>
+
+        <!-- SECTION: quick-search -->
+        <section class="card" aria-labelledby="t-qs">
+          <div class="card-head">
+            <h2 class="card-title" id="t-qs">
+              <span class="dot" style="background:var(--c-search)"></span>
+              一键检索<span class="card-sub">输入关键词，带着它直接跳到检索页</span>
+            </h2>
+          </div>
+          <div class="card-body">
+            <div class="qs-row">
+              <div class="qs-input-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" class="input" id="qs-keyword" placeholder="输入研究关键词、DOI 或论文标题…" autocomplete="off" aria-label="检索关键词">
+              </div>
+              <div class="qs-btns" id="qs-btns"></div>
+            </div>
+            <div class="qs-chips" id="qs-chips"></div>
+            <p class="qs-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>X-MOL 支持带参数直达检索结果页，输入关键词后点「X-MOL 搜」即可看到搜索结果；其余站点会打开检索页并自动带入关键词（部分站点需登录后生效）。找到文献后点「收进书架」把它记下来。</span>
+            </p>
+          </div>
+        </section>
+
+        <!-- SECTION: shelf -->
+        <section class="card" aria-labelledby="t-shelf">
+          <div class="card-head">
+            <h2 class="card-title" id="t-shelf">
+              <span class="dot" style="background:var(--c-shelf)"></span>
+              我的文献书架<span class="card-sub" id="shelf-count"></span>
+            </h2>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn--primary btn--sm" id="btn-add" data-primary-action="add-paper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                收进书架
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="stat-row" id="stat-row" style="margin-bottom:14px;"></div>
+            <div class="toolbar" style="margin-bottom:15px;">
+              <div class="qs-input-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" class="input" id="shelf-search" placeholder="在书架里搜标题 / 作者 / 笔记…" autocomplete="off" aria-label="书架内搜索">
+              </div>
+              <select class="select" id="filter-topic" aria-label="按课题筛选"></select>
+              <select class="select" id="filter-status" aria-label="按状态筛选"></select>
+              <select class="select" id="sort-by" aria-label="排序方式">
+                <option value="added-desc">最新收录</option>
+                <option value="added-asc">最早收录</option>
+                <option value="title">按标题</option>
+                <option value="year-desc">按年份（新→旧）</option>
+                <option value="status">按进度</option>
+              </select>
+            </div>
+            <div class="paper-list" id="paper-list"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <p class="footnote">
+      文献数据保存在当前浏览器本地，不上传任何服务器；换设备或清理浏览器数据前，记得用右上角「导出备份」存一份 JSON。
+    </p>
+  </div>
+</main>
+
+<!-- SECTION: modal-paper -->
+<div class="overlay" id="overlay-paper" role="dialog" aria-modal="true" aria-labelledby="modal-paper-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-paper-title">收进书架</h3>
+      <button type="button" class="modal-close" data-close="overlay-paper" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="paper-form" novalidate>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field-group-title">文献信息</div>
+
+          <div class="field field--full" id="f-title">
+            <label for="p-title">论文标题 <span class="req">*</span></label>
+            <textarea class="textarea" id="p-title" rows="2" placeholder="粘贴英文原标题，方便之后在小绿鲸里对照"></textarea>
+            <span class="field-error">标题不能为空</span>
+          </div>
+
+          <div class="field">
+            <label for="p-authors">作者 / 课题组</label>
+            <input type="text" class="input" id="p-authors" placeholder="如 Zhang Y. et al." autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="p-journal">期刊 / 会议</label>
+            <input type="text" class="input" id="p-journal" placeholder="如 Nature Energy" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="p-year">年份</label>
+            <input type="number" class="input" id="p-year" placeholder="2026" min="1900" max="2100" step="1">
+            <span class="field-error">请填写 1900 - 2100 之间的年份</span>
+          </div>
+
+          <div class="field">
+            <label for="p-topic">所属课题 <span class="tip">用于分类筛选</span></label>
+            <input type="text" class="input" id="p-topic" list="topic-list" placeholder="如 钙钛矿稳定性" autocomplete="off">
+            <datalist id="topic-list"></datalist>
+          </div>
+
+          <div class="field field--full">
+            <label for="p-doi">DOI <span class="tip">填了可以直接定位原文</span></label>
+            <input type="text" class="input" id="p-doi" placeholder="如 10.1038/s41560-025-01234-5" autocomplete="off">
+          </div>
+
+          <div class="field field--full">
+            <label for="p-url">在线链接 <span class="tip">X-MOL 页面或出版社页面都行</span></label>
+            <input type="url" class="input" id="p-url" placeholder="https://" autocomplete="off">
+            <span class="field-error">链接格式不正确，需要以 http:// 或 https:// 开头</span>
+          </div>
+
+          <div class="field field--full">
+            <label for="p-file">本地 PDF 文件名 <span class="tip">放在与本页面同一文件夹内，卡片上就能直接打开</span></label>
+            <input type="text" class="input" id="p-file" placeholder="如 my-paper.pdf" autocomplete="off">
+          </div>
+
+          <div class="field field--full">
+            <label>阅读进度</label>
+            <div class="status-picker" id="status-picker"></div>
+          </div>
+
+          <div class="field-group-title">文献内容（卡片上直接展示）</div>
+
+          <div class="field field--full">
+            <label for="p-abstract">摘要 <span class="tip">一段话概括这篇讲了什么</span></label>
+            <textarea class="textarea" id="p-abstract" rows="4" placeholder="粘贴或改写论文摘要"></textarea>
+          </div>
+
+          <div class="field field--full">
+            <label for="p-keywords">关键词 <span class="tip">用分号或逗号分隔，卡片上会显示成标签</span></label>
+            <input type="text" class="input" id="p-keywords" placeholder="如 carbon footprint; ML training; energy efficiency" autocomplete="off">
+          </div>
+
+          <div class="field field--full">
+            <label for="p-method">方法 / 技术路线</label>
+            <textarea class="textarea" id="p-method" rows="3" placeholder="如：提出 4Ms 最佳实践并量化其收益"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="p-result">关键结论 / 数据</label>
+            <textarea class="textarea" id="p-result" rows="3" placeholder="如：能耗降 83 倍，碳排放降 747 倍"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="p-novelty">创新点</label>
+            <textarea class="textarea" id="p-novelty" rows="3" placeholder="相对已有工作新在哪"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="p-limit">不足 / 可质疑处</label>
+            <textarea class="textarea" id="p-limit" rows="3" placeholder="组会上老师爱问的地方"></textarea>
+          </div>
+
+          <div class="field-group-title">个人记录</div>
+
+          <div class="field field--full">
+            <label for="p-note">一句话笔记</label>
+            <textarea class="textarea" id="p-note" rows="2" placeholder="这篇最值得记的一点是什么"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close="overlay-paper">取消</button>
+        <button type="submit" class="btn btn--primary" id="btn-save-paper" data-primary-action="save-paper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="btn-save-label">保存</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SECTION: modal-confirm -->
+<div class="overlay" id="overlay-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal confirm-box">
+    <div class="modal-head">
+      <h3 id="confirm-title">确认操作</h3>
+      <button type="button" class="modal-close" data-close="overlay-confirm" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="confirm-body"><p id="confirm-text"></p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close="overlay-confirm" id="btn-confirm-cancel">再想想</button>
+      <button type="button" class="btn" id="btn-confirm-alt" style="display:none;"></button>
+      <button type="button" class="btn" id="btn-confirm-ok" style="background:var(--c-danger);border-color:var(--c-danger);color:#fff;">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<script>
+/* SECTION: app-data
+ * 论文工作流导航台 — 配置与示例数据
+ * 说明：所有外部链接均为各产品官方公开入口；检索链接使用已验证可用的参数格式。
+ */
+(function (global) {
+  'use strict';
+
+  /* SECTION: data-flow-steps */
+  var FLOW_STEPS = [
+    {
+      no: 'STEP 1',
+      name: '找文献',
+      desc: '按关键词、DOI 或期刊名检索，先把方向摸清。',
+      tool: 'X-MOL 学术平台',
+      color: 'var(--c-search)',
+      icon: 'search',
+      action: 'focus-search'
+    },
+    {
+      no: 'STEP 2',
+      name: '存书架',
+      desc: '挑中的文献记进本页书架，标好课题和阅读进度。',
+      tool: '本页文献书架',
+      color: 'var(--c-shelf)',
+      icon: 'shelf',
+      action: 'open-add'
+    },
+    {
+      no: 'STEP 3',
+      name: '精读分析',
+      desc: '翻译、AI 解析、批注做笔记，回填创新点与不足。',
+      tool: '小绿鲸文献阅读器',
+      color: 'var(--c-read)',
+      icon: 'read',
+      action: 'open-tool:xlj'
+    },
+    {
+      no: 'STEP 4',
+      name: '组会汇报',
+      desc: '把精读要点整理进演示文稿，做组会汇报的 PPT。',
+      tool: '金山文档 / WPS',
+      color: 'var(--c-report)',
+      icon: 'report',
+      action: 'open-tool:wps'
+    }
+  ];
+
+  /* SECTION: data-tools */
+  var TOOLS = [
+    {
+      id: 'xmol',
+      badge: 'X',
+      name: 'X-MOL 学术平台',
+      url: 'www.x-mol.com',
+      color: 'var(--c-search)',
+      desc: '上万种期刊文献检索，支持关键词、篇名、DOI 直达原文，可查影响因子与投稿指南。',
+      links: [
+        { label: '打开 X-MOL 首页', href: 'https://www.x-mol.com/', main: true },
+        { label: '科研网址导航', href: 'https://www.x-mol.com/allsite', main: false }
+      ]
+    },
+    {
+      id: 'xlj',
+      badge: '鲸',
+      name: '小绿鲸英文文献阅读器',
+      url: 'www.xljsci.com',
+      color: 'var(--c-read)',
+      desc: '云端 PDF 阅读：多引擎学术翻译、AI 文献解析、批注笔记、思维导图与组会汇报。',
+      links: [
+        { label: '进入小绿鲸（网页版 / 下载）', href: 'https://www.xljsci.com/', main: true }
+      ]
+    },
+    {
+      id: 'doclingo',
+      badge: 'D',
+      name: 'Doclingo 文档翻译',
+      url: 'doclingo.vip/zh',
+      color: 'var(--c-trans)',
+      desc: '免费 AI 文档翻译，支持 PDF / Word / PPT / Excel，保留原文版式，双语对照输出，扫描件可 OCR 识别。',
+      links: [
+        { label: '打开 Doclingo（中文）', href: 'https://doclingo.vip/zh', main: true }
+      ]
+    },
+    {
+      id: 'wps',
+      badge: 'W',
+      name: '金山文档 / WPS Office',
+      url: 'www.kdocs.cn',
+      color: 'var(--c-report)',
+      desc: '在线新建演示文稿，把大纲粘进去做组会 PPT，云端自动保存、多端同步。',
+      links: [
+        { label: '金山文档（网页版 Office）', href: 'https://www.kdocs.cn/', main: true },
+        { label: 'WPS 官网（客户端下载）', href: 'https://www.wps.cn/', main: false }
+      ]
+    }
+  ];
+
+  /* SECTION: data-search-sources
+   * withKw = true 表示该站点支持把关键词拼进 URL 直达检索结果页。
+   */
+  var SEARCH_SOURCES = [
+    {
+      id: 'xmol',
+      label: 'X-MOL 搜',
+      color: 'var(--c-search)',
+      primary: true,
+      withKw: true,
+      tpl: 'https://www.x-mol.com/paper/search/q?option={kw}'
+    },
+    {
+      id: 'scholar',
+      label: 'Google 学术',
+      color: 'var(--c-ink-2)',
+      primary: false,
+      withKw: true,
+      tpl: 'https://scholar.google.com/scholar?q={kw}'
+    },
+    {
+      id: 'pubmed',
+      label: 'PubMed',
+      color: 'var(--c-ink-2)',
+      primary: false,
+      withKw: true,
+      tpl: 'https://pubmed.ncbi.nlm.nih.gov/?term={kw}'
+    },
+    {
+      id: 'arxiv',
+      label: 'arXiv',
+      color: 'var(--c-ink-2)',
+      primary: false,
+      withKw: true,
+      tpl: 'https://arxiv.org/search/?searchtype=all&query={kw}'
+    }
+  ];
+
+  /* SECTION: data-presets */
+  var PRESET_KEYWORDS = [
+    'perovskite solar cell stability',
+    'lithium metal anode',
+    'single atom catalysis',
+    'large language model agent'
+  ];
+
+  /* SECTION: data-statuses */
+  var STATUSES = [
+    { id: 'todo',    label: '待读',     color: '#64748b', order: 0 },
+    { id: 'reading', label: '在读',     color: '#1d4ed8', order: 1 },
+    { id: 'done',    label: '已精读',   color: '#0f766e', order: 2 }
+  ];
+
+  function statusOf(id) {
+    for (var i = 0; i < STATUSES.length; i++) { if (STATUSES[i].id === id) { return STATUSES[i]; } }
+    return STATUSES[0];
+  }
+
+  function nextStatus(id) {
+    var s = statusOf(id);
+    var idx = (s.order + 1) % STATUSES.length;
+    for (var i = 0; i < STATUSES.length; i++) { if (STATUSES[i].order === idx) { return STATUSES[i].id; } }
+    return 'todo';
+  }
+
+
+
+  /* SECTION: data-preload
+   * 预置的真实文献（逐篇判定，按 id 去重）。
+   * 每篇只在"尚未处理过该 id"且书架中不存在该 id 时写入一次；
+   * 写入后记录标记，用户手动删除不会被刷新复活。
+   * file 字段留空表示本地暂无 PDF，卡片不会渲染"打开 PDF"按钮。
+   */
+  var PRELOAD_PAPERS = [{
+    id: 'p-carbon-footprint-2022',
+    title: 'The Carbon Footprint of Machine Learning Training Will Plateau, Then Shrink',
+    authors: 'David Patterson, Joseph Gonzalez, Urs Hölzle, Quoc Le, Chen Liang, Lluis-Miquel Munguia, Daniel Rothchild, David R. So, Maud Texier, Jeff Dean',
+    journal: 'IEEE Computer',
+    year: '2022',
+    topic: '机器学习碳排放',
+    doi: '10.1109/MC.2022.3148714',
+    url: 'https://doi.org/10.1109/MC.2022.3148714',
+    file: 'S1-The_Carbon_Footprint_of_Machine_Learning_Training_Will_Plateau_Then_Shrink.pdf',
+    status: 'todo',
+    abstract: '机器学习（ML）工作负载的快速增长引发了对其碳排放的担忧。作者提出四项最佳实践（"4M"：模型、硬件、云化、选址），相对传统做法可将 ML 训练的能耗降低约两个数量级、碳排放降低约三个数量级；并指出此前公开发表的估计比真实碳足迹高出 100–100,000 倍。过去三年这些实践使 ML 占 Google 总能耗的比例保持在 15% 以内。若全领域采纳最佳实践，预计到 2030 年 ML 训练产生的碳排放总量将转为下降。',
+    keywords: 'carbon footprint; ML training; energy efficiency; TPU; data center; 4Ms; carbon-free energy',
+    method: '提出 4Ms 最佳实践并量化其收益：① Model——稀疏模型相对稠密模型减少约 5–10 倍计算量；② Machine——TPU 与新一代 GPU 等训练专用处理器相对通用处理器提升 2–5 倍性能/瓦；③ Mechanization——云端数据中心相对自建机房提升 1.4–2 倍能效；④ Map——选择清洁能源地区再降 5–10 倍毛碳排放。四项叠加在四年内实现能耗降低 83 倍、CO2 排放降低 747 倍（同等模型质量下）。',
+    note: '',
+    result: '',
+    novelty: '',
+    limit: '',
+    addedAt: 1791086800000,
+    picked: false
+  }, {
+    id: 'p-agentic-energy-2026',
+    title: 'Networking-Aware Energy Efficiency in Agentic AI Inference: A Survey',
+    authors: 'Xiaojing Chen, Haiqi Yu, Wei Ni, Dusit Niyato, Ruichen Zhang, Xin Wang, Shunqing Zhang, Shugong Xu',
+    journal: 'arXiv:2604.07857 [eess.SY]',
+    year: '2026',
+    topic: '智能体推理能耗',
+    doi: '10.48550/arXiv.2604.07857',
+    url: 'https://arxiv.org/abs/2604.07857',
+    file: '',
+    status: 'todo',
+    abstract: '大语言模型催生了 Agentic AI——把感知、推理、行动整合为闭环流水线、可持续自适应的自主系统。它在移动边缘计算、自主系统和下一代无线网络中带来变革性应用的同时，也因迭代式推理与持续性数据交换产生了根本性的能耗挑战。与传统 AI 的瓶颈在于计算浮点运算量（FLOPs）不同，Agentic AI 面临计算与通信两类能耗的叠加复合。本文提出一套能耗核算框架，在感知—推理—行动闭环中分别识别计算成本与通信成本；建立覆盖模型简化、计算控制、输入与注意力优化、硬件感知推理的统一分类体系；探讨联合优化模型参数、无线传输与边缘资源的跨层协同设计；最后指出联邦绿色学习、碳感知智能体、6G 原生 Agentic AI 与自维持系统等开放挑战。',
+    keywords: 'Agentic AI; energy accounting; communication cost; perception-reasoning-action; cross-layer co-design; model simplification; hardware-aware inference; carbon-aware; 6G; mobile edge computing',
+    method: '综述体，公式少。核心方法贡献是"能耗核算框架"：把一次智能体推理的总能耗显式拆成计算能耗与通信能耗两块，并按感知—推理—行动三个阶段定位各自的成本发生位置。在此之上建立四类优化手段的统一分类学（模型简化 / 计算控制 / 输入与注意力优化 / 硬件感知推理），并提出跨层协同设计思路——同时优化模型参数、无线传输与边缘资源，而非孤立调优单层。',
+    note: '对模块一的价值：其"计算 vs 通信"的二分核算逻辑可直接借来界定本课题的采集边界——哪些环节计入、哪些不计入，需要明确声明。相比引用 2022 年的 ML 训练能耗文章，本文讨论的是推理侧且含网络成本，与 Agentic 场景更贴题。',
+    result: '',
+    novelty: '',
+    limit: '综述文体，以框架梳理与分类学建构为主，不提供可复现的实测能耗数据与量化对比实验；核算框架停留在定性拆分层面，未给出统一的测量协议或基准，实际落地时仍需自行确定测量方法与边界口径。',
+    addedAt: 1791172800000,
+    picked: false
+  }, {
+    id: 'p-beyond-efficiency-2026',
+    title: 'Beyond Efficiency: A Systematic Review of Energy Consumption and Carbon Footprint Across the AI Lifecycle',
+    authors: 'Ana Paula Oliveira, Tânia Carraquico, Clara Martinez-Perez',
+    journal: 'Sustainability (MDPI) 18(3):1359',
+    year: '2026',
+    topic: '能耗测量与基准数据集',
+    doi: '10.3390/su18031359',
+    url: 'https://doi.org/10.3390/su18031359',
+    file: '',
+    status: 'todo',
+    abstract: 'AI 系统的快速扩张加剧了对其能耗与碳足迹的担忧，也引出 Green AI 范式下的效率导向策略是否足以保障系统级环境可持续性的疑问。本文按 PRISMA 2020 与 AMSTAR-2 标准开展系统综述，在 Web of Science、PubMed、Scopus 检索至 2025 年 12 月 19 日，最终纳入 10 项定量评估 AI 能耗、碳足迹、温室气体排放或生命周期影响的研究（涵盖训练、推理、硬件与部署基础设施）。结果显示 AI 相关环境影响巨大且高度依赖情境：在大规模部署中，推理阶段能耗常常与训练相当甚至超过训练；生命周期评估表明硬件相关排放与电网电力结构强烈影响总碳足迹，而效率收益常被系统级反馈所抵消。作者由此论证孤立的效率改进并不充分，可持续 AI 需要协同的系统级治理，把能耗与碳约束内嵌进设计与运营决策，并进一步提出一个碳感知多智能体强化学习（MARL）概念框架。',
+    keywords: 'energy consumption; carbon footprint; sustainable AI; Green AI; life-cycle assessment; rebound effect; carbon-aware systems; multi-agent reinforcement learning; inference-phase dominance; embodied emissions; PRISMA; carbon tunnel vision',
+    method: '系统综述：PRISMA 2020 流程 + AMSTAR-2 质量评价标准，PROSPERO 注册号 CRD420251276494；用 PICOS 框架界定研究问题；检索 Web of Science（268）、PubMed（27）、Scopus（384）共 679 条记录，去重与初筛后全文评估 132 篇，排除 123 篇，另手工补充 1 篇，最终纳入 10 篇。两名评审独立筛选与提取数据，按"能耗 vs 碳排放"×"运营 vs 蕴含（embodied）"四象限归类综合。综述之外，第 6 节提出碳感知 MARL 概念框架，采用集中训练—分散执行（CTDE）范式，设三个智能体：模型优化智能体（自适应精度、提前退出、知识蒸馏）、硬件生命周期智能体（利用率与替换时机）、电网感知调度智能体（按实时碳强度迁移非紧急负载）；奖励函数显式纳入运营排放、蕴含排放与约束违反项。',
+    note: '【汇报要点】这篇的价值在于它已把推理阶段的实证证据系统汇总，可用它来核对模块一文献综述的完整性，看自己漏了哪一类。它给出的四象限归类（能耗/碳排放 × 运营/蕴含）本身就是一张很好的自查清单。\n【需向老师澄清的一点】用户笔记原写"专门有一节讨论推理集群的部署导向研究与碳感知调度"——核实后：这部分内容在第 5 节讨论中，属于对 PRISMA 纳入范围之外更广泛文献的一段评述（原文引文 42–45），明确指出这类研究"提供高分辨率、系统特定的证据，但结论本质上依赖具体情境、为特定基础设施优化，并非为支持全生命周期或跨研究综合而设计"。即这 10 篇纳入研究并不包含推理集群与碳感知调度的系统类论文，汇报时若说"综述纳入了推理集群研究"会被追问。',
+    result: '① 挑战"训练主导"叙事：在真实部署中推理阶段能耗已成为与训练相当甚至占主导的贡献者，尤其是持续运行或全球规模的服务（如 LLM 服务），但推理能耗很少像训练那样被严格报告、监管或优化。② 系统边界至关重要：硬件制造、运输与报废的蕴含排放可与运营排放相当甚至更高，仅算运营排放会系统性低估 AI 真实碳足迹。③ 高度情境依赖：相同算力负载因电网构成、可再生能源时段与区域排放因子不同，碳足迹差异显著；数据中心选址的重要性可与算法效率相当。④ 能耗与碳排放不是模型的内在属性，而是算法、软件流水线、硬件配置与部署策略交互作用下的涌现结果——数据处理框架、数值精度、批量大小、负载调度等工程决策可造成数量级差异。⑤ 测量与缓解之间存在持续鸿沟：反弹效应是核心未解挑战，算法或硬件优化带来的效率收益可能被扩大部署、需求增长或硬件加速更新所抵消，导致净排放持平或上升。⑥ 指出"碳隧道视野"问题：仅报 CO2eq 无法覆盖多维环境影响，呼吁纳入水足迹（数据中心冷却）与电子废弃物（GPU/TPU 高更新率）。',
+    novelty: '两重贡献：其一，开展同时考察运营能耗、碳排放与硬件蕴含生命周期影响的系统综合，识别关键驱动因素、方法学局限与变异来源；其二，直接基于综述中发现的规律，提出一个把可持续性约束转化为协同自适应缓解机制的概念框架，把可持续性从"事后描述的指标"转变为"设计期与运行期的控制变量"。作者明确指出此前没有研究在整合这些维度的同时把可持续性评估与控制导向的系统设计联系起来。',
+    limit: '① 样本量极小：仅纳入 10 篇，作者自承这反映了该领域现状——Green AI 话语庞杂，但缺乏经同行评审、含硬件验证全生命周期能耗数据的一手实证研究；作者将其定位为领域"透明度缺口"的证据而非本综述缺陷。② 第 6 节的 MARL 框架未经实证验证，作者明确声明"not empirically validated within this study"，属"假设驱动的系统设计"与研究议程，不是已验证方案。③ 检索库为 WoS/PubMed/Scopus，未系统检索灰色文献与非同行评审报告；PubMed 偏医学、WoS 与 Scopus 对 arXiv 预印本及计算机体系结构类会议（如 ISCA、MLSys）覆盖有限，故推理集群与碳感知调度这类系统工程证据只能落在讨论段落。④ 纳入标准排除综述类文章与无定量结果的研究，导致 Green AI 方法学主线文献（多为综述或框架类）无法进入综合分析。⑤ 各研究功能单位高度异质（每次训练、每推理工作流、每运营周期、各生命周期阶段），作者放弃归一化，因此无法做跨研究定量比较。',
+    addedAt: 1791259200000,
+    picked: false
+  }, {
+    id: 'p-goal-level-energy-2026',
+    title: 'Energy per Successful Goal: Goal-Level Energy Accounting for Agentic AI Systems',
+    authors: 'Deepak Panigrahy, Aakash Tyagi',
+    journal: 'arXiv:2605.22883 [cs.AI]',
+    year: '2026',
+    topic: '能耗测量与基准数据集',
+    doi: '10.48550/arXiv.2605.22883',
+    url: 'https://arxiv.org/abs/2605.22883',
+    file: '',
+    status: 'todo',
+    abstract: '当前 AI 能耗基准在"单次模型调用"或"单次训练"的粒度上测量消耗。对经典单轮负载而言这一单位仍然自洽；但对智能体系统——单个用户目标可能触发多步编排、工具调用、重试与失败恢复循环——调用次数只是实现产物而非任务属性，按推理次数归一化会歪曲完成目标的真实能耗代价。本文提出 A-LEMS（Agentic LLM Energy Measurement System），一个跨层测量框架，把 AI 能耗核算的单位从"每次推理的能耗"重定义为"每个成功目标的能耗"（Energy per Successful Goal, EpG）。EpG 把全部执行尝试（含失败与重试）的工作流总能耗聚合，再除以成功完成的目标数。A-LEMS 通过时间边界模型、把 RAPL 信号映射到工作流级能耗的五层观测流水线，以及把每次测量绑定到硬件与运行时配置的可复现协议，实现能耗归因的形式化。在 EpG 之上进一步定义编排开销指数（Orchestration Overhead Index, OOI），在相同任务准则下分离出编排相对于线性执行的能耗代价。在 5 个推理类与 3 个工具增强类任务族上，智能体工作流每个成功目标的平均能耗是线性基线的 4.33 倍（888.1 J 对 205.3 J）。该开销由编排结构而非推理算力驱动。对工具增强类任务，OOI 反转至 1.0 倍以下：智能体执行比线性执行更省，证实该指标刻画的是编排结构而非固定的向上偏置。这些发现确立了"每次推理能耗"对智能体 AI 已不充分；EpG 与 OOI 为精确基准测试提供了测量基础——编排结构是能耗代价的首要决定因素。',
+    keywords: 'EpG; Energy per Successful Goal; OOI; Orchestration Overhead Index; A-LEMS; agentic AI; goal-level energy accounting; RAPL; temporal boundary model; reproducibility protocol; orchestration overhead; tool-augmented tasks',
+    method: '实证测量研究（34 页、16 图、10 表），非综述。核心是自建测量系统 A-LEMS 与两个指标：\n① EpG = 全部执行尝试的工作流总能耗 ÷ 成功完成的目标数。关键在于分子显式包含失败与重试的能耗，分母只算成功目标——这把"重试成本"从隐藏项变成被计入的量。\n② OOI = 智能体执行能耗 ÷ 相同任务准则下线性执行能耗，用于分离编排本身的代价。作者用"OOI 在工具增强任务上反转至 1.0 以下"来证明该指标不是恒定向上偏置，而是真在刻画编排结构。\n③ 归因机制三件套：时间边界模型（界定一次工作流的起止，解决异步与重叠执行的归属问题）、五层观测流水线（把 RAPL 硬件功耗信号逐层映射到工作流级能耗）、可复现协议（每次测量都绑定具体硬件与运行时配置）。\n④ 实验设计：5 个推理类任务族 + 3 个工具增强类任务族，与线性基线对照。',
+    note: '【汇报要点】这篇对你的指标设计有直接冲击。你模块一用的是单位 token 能耗，这篇论证应按"目标"核算。汇报时值得专门做一页讨论：我们的数据集要不要预留 goal-level 字段？这是个能体现思考深度的点，老师大概率会喜欢。\n【建议的具体落地说法】不必推翻 token 级指标，而是论证"分层记账"：token 级作为可复现的底层原子单位保留，同时预留 goal_id / attempt_id / is_success / retry_count 四个字段，使 EpG 可由 token 级数据向上聚合得出，反之则不可能。即"底层原子单位 + 可选聚合层"，这样既兼容现有设计又为 goal-level 评价留出扩展位——这比直接改成 goal 级更能体现工程判断。\n【与第 2 篇的呼应】Oliveira 综述指出各研究"功能单位高度异质、无法跨研究定量比较"，正是这篇要解决的问题；可以把两者串成"问题—方案"的论证链。',
+    result: '① 智能体工作流每个成功目标的平均能耗是线性基线的 4.33 倍（888.1 J 对 205.3 J）。② 该开销由编排结构驱动，而非推理算力本身。③ 对工具增强类任务，OOI 反转至 1.0 倍以下，智能体执行反而比线性执行更省能耗——证明 OOI 刻画的是编排结构，不存在固定的向上偏置。④ 结论：energy-per-inference 对智能体 AI 已不足以作为评价指标；编排结构是能耗代价的首要决定因素。',
+    novelty: '① 重新定义 AI 能耗核算的单位：从"每次推理"改为"每个成功目标"，并论证前者的调用次数在智能体场景下只是实现产物而非任务属性。② 首次把失败与重试的能耗显式计入核算分子，使重试成本不再被隐藏。③ 提出 OOI 以分离编排开销与线性执行开销，并用"指标可反转"这一实证结果反证其无系统偏置——这是指标设计上很少见的自证方式。④ 提供把硬件级 RAPL 信号归因到工作流级的五层观测流水线与时间边界模型，以及绑定硬件与运行时配置的可复现协议，解决能耗归因中长期存在的时间边界模糊问题。',
+    limit: '① 测量依赖 Intel RAPL 接口，天然绑定特定硬件与运行时配置，跨异构加速器（如不同厂商 GPU/NPU）的可移植性存疑——这也正是同期另一篇论文（arXiv:2605.27599）指出边缘 AI 硬件存在"能耗盲点"、无法支撑进程级归因的原因，可交叉引用。② 任务族规模为 5 个推理类 + 3 个工具增强类，样本面有限，4.33 倍这一均值能否外推到更长链条、更多智能体协作的场景未经检验。③ "成功"的判定标准依赖各任务族的定义，而不同领域对目标达成的界定并不统一，这会影响 EpG 分母的可比性。④ 属 arXiv 预印本（2026-05-20 提交），未见同行评审记录，被引仅 1 次，结论的学界共识度尚待验证。',
+    addedAt: 1791345600000,
+    picked: false
+  }];
+
+  /* SECTION: data-icons */
+  var ICONS = {
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    shelf: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+    read: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+    report: '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/><path d="M8 12l3-3 2.5 2.5L17 8"/>',
+    external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+    edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+    trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+    check: '<polyline points="20 6 9 17 4 12"/>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    arrow: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+    cycle: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+    info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+    ok: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    warn: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    chevronDown: '<polyline points="6 9 12 15 18 9"/>',
+    chevronUp: '<polyline points="18 15 12 9 6 15"/>'
+  };
+
+  /* SECTION: data-storage-keys */
+  var STORAGE_KEY = 'paper-workflow-hub.v1';
+  /* 已处理过的预置文献 id 列表（JSON 数组）。逐篇判定，用户删除后不会复活。 */
+  var PRELOAD_DONE_KEY = 'paper-workflow-hub.preload-done.v1';
+  /* 旧版单篇标记键，仅用于一次性迁移，之后不再写入。 */
+  var PRELOAD_FLAG_KEY_LEGACY = 'paper-workflow-hub.preloaded.v1';
+
+  global.APP_DATA = {
+    FLOW_STEPS: FLOW_STEPS,
+    TOOLS: TOOLS,
+    SEARCH_SOURCES: SEARCH_SOURCES,
+    PRESET_KEYWORDS: PRESET_KEYWORDS,
+    STATUSES: STATUSES,
+    PRELOAD_PAPERS: PRELOAD_PAPERS,
+    ICONS: ICONS,
+    STORAGE_KEY: STORAGE_KEY,
+    PRELOAD_DONE_KEY: PRELOAD_DONE_KEY,
+    PRELOAD_FLAG_KEY_LEGACY: PRELOAD_FLAG_KEY_LEGACY,
+    statusOf: statusOf,
+    nextStatus: nextStatus
+  };
+})(window);
+
+</script>
+<script>
+﻿/* SECTION: app-core
+ * 论文工作流导航台 — 交互逻辑
+ * 数据保存在浏览器 localStorage，不上传任何服务器。
+ */
+(function () {
+  'use strict';
+
+  var D = window.APP_DATA;
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+
+  function icon(name, cls) {
+    var body = D.ICONS[name] || '';
+    return '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  }
+
+  /* SECTION: preload-done
+   * "已处理过的预置文献 id"列表读写。
+   * 旧版只用一个布尔标记表示"第一篇已预置"，这里一次性迁移为 id 列表。
+   */
+  function readPreloadDone() {
+    var list = null;
+    try {
+      var raw = window.localStorage.getItem(D.PRELOAD_DONE_KEY);
+      if (raw) {
+        var arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          list = arr.filter(function (x) { return typeof x === 'string'; });
+        }
+      }
+    } catch (e) { list = null; }
+
+    if (!list) {
+      /* 迁移：旧标记为 '1' 说明第一篇（PRELOAD_PAPERS[0]）当时已写入 */
+      list = [];
+      try {
+        var legacy = window.localStorage.getItem(D.PRELOAD_FLAG_KEY_LEGACY);
+        var presets = D.PRELOAD_PAPERS || [];
+        if (legacy === '1' && presets[0] && presets[0].id) { list.push(presets[0].id); }
+      } catch (e) { /* 忽略 */ }
+    }
+    return list;
+  }
+
+  function writePreloadDone(list) {
+    try {
+      window.localStorage.setItem(D.PRELOAD_DONE_KEY, JSON.stringify(list));
+      window.localStorage.removeItem(D.PRELOAD_FLAG_KEY_LEGACY);
+    } catch (e) { /* 忽略：隐私模式等场景下写入失败不影响本次显示 */ }
+  }
+
+  /* SECTION: store */
+  var Store = {
+    papers: [],
+    ready: false,
+
+    load: function () {
+      var raw = null;
+      try { raw = window.localStorage.getItem(D.STORAGE_KEY); } catch (e) { raw = null; }
+
+      var parsed = raw ? Store.parse(raw) : null;
+      if (!parsed) { parsed = []; }
+
+      /* 迁移旧版占位示例数据：seed-* 条目一律清除 */
+      parsed = parsed.filter(function (p) { return !/^seed-\d+$/.test(p.id); });
+
+      /* 读取"已处理过的预置 id"列表；并从旧版单篇标记迁移 */
+      var doneIds = readPreloadDone();
+
+      /* 逐篇预置用户提供的真实文献：
+       * 仅当该 id 未处理过、且书架里还没有它时写入。
+       * 写入后记入 doneIds，用户日后手动删除不会被刷新复活。 */
+      var presets = D.PRELOAD_PAPERS || [];
+      presets.forEach(function (preset) {
+        if (!preset || !preset.id) { return; }
+        if (doneIds.indexOf(preset.id) >= 0) { return; }
+        var exists = parsed.some(function (p) { return p.id === preset.id; });
+        if (!exists) {
+          /* 不可在此覆盖 addedAt：normalize 已做兜底——
+           * 预置里给了真实时间戳就沿用，为 0 或缺失才回落 Date.now()。 */
+          parsed.unshift(normalize(preset));
+        }
+        doneIds.push(preset.id);
+      });
+      writePreloadDone(doneIds);
+
+      Store.papers = parsed;
+      Store.ready = true;
+      Store.save();
+    },
+
+    parse: function (raw) {
+      try {
+        var data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.papers)) { return null; }
+        return data.papers.map(normalize);
+      } catch (e) { return null; }
+    },
+
+    save: function () {
+      try {
+        window.localStorage.setItem(D.STORAGE_KEY, JSON.stringify({ v: 1, papers: Store.papers }));
+        return true;
+      } catch (e) { return false; }
+    },
+
+    byId: function (id) {
+      for (var i = 0; i < Store.papers.length; i++) { if (Store.papers[i].id === id) { return Store.papers[i]; } }
+      return null;
+    },
+    indexById: function (id) {
+      for (var i = 0; i < Store.papers.length; i++) { if (Store.papers[i].id === id) { return i; } }
+      return -1;
+    },
+    add: function (paper) { Store.papers.unshift(paper); return Store.save(); },
+    update: function (id, patch) {
+      var p = Store.byId(id);
+      if (!p) { return false; }
+      Object.keys(patch).forEach(function (k) { p[k] = patch[k]; });
+      return Store.save();
+    },
+    remove: function (id) {
+      var i = Store.indexById(id);
+      if (i < 0) { return false; }
+      Store.papers.splice(i, 1);
+      return Store.save();
+    },
+    topics: function () {
+      var set = {};
+      Store.papers.forEach(function (p) { if (p.topic) { set[p.topic] = true; } });
+      return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'zh-Hans-CN'); });
+    },
+    picked: function () {
+      return Store.papers.filter(function (p) { return p.picked; });
+    }
+  };
+
+  function normalize(p) {
+    p = p || {};
+    var out = {
+      id: typeof p.id === 'string' && p.id ? p.id : 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      title: str(p.title),
+      authors: str(p.authors),
+      journal: str(p.journal),
+      year: str(p.year),
+      topic: str(p.topic),
+      doi: str(p.doi),
+      url: str(p.url),
+      file: str(p.file),
+      status: validStatus(p.status) ? p.status : 'todo',
+      abstract: str(p.abstract),
+      keywords: str(p.keywords),
+      note: str(p.note),
+      method: str(p.method),
+      result: str(p.result),
+      novelty: str(p.novelty),
+      limit: str(p.limit),
+      addedAt: typeof p.addedAt === 'number' && p.addedAt ? p.addedAt : Date.now(),
+      picked: p.picked === true
+    };
+    return out;
+  }
+  function str(v) { return (v === null || v === undefined) ? '' : String(v).slice(0, 4000); }
+  function validStatus(s) {
+    return D.STATUSES.some(function (x) { return x.id === s; });
+  }
+
+  /* SECTION: util */
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function openUrl(url) {
+    if (!url) { return; }
+    var w = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!w) { Toast.show('浏览器拦截了新标签页，请允许弹窗后重试', 'warn'); }
+  }
+  function safeUrl(u) {
+    var s = String(u || '').trim();
+    if (!s) { return ''; }
+    if (!/^https?:\/\//i.test(s)) { s = 'https://' + s; }
+    return s;
+  }
+  function isHttpUrl(s) {
+    return /^https?:\/\/\S+$/i.test(String(s || '').trim());
+  }
+  function doiUrl(doi) {
+    var s = String(doi || '').trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+    if (!s) { return ''; }
+    return 'https://doi.org/' + s;
+  }
+  function fmtDate(ts) {
+    if (!ts) { return ''; }
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) { return ''; }
+    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function truncate(s, n) {
+    s = String(s || '');
+    return s.length > n ? s.slice(0, n) + '…' : s;
+  }
+
+  /* SECTION: toast */
+  var Toast = {
+    show: function (msg, kind) {
+      var zone = $('#toast-zone');
+      if (!zone) { return; }
+      var el = document.createElement('div');
+      el.className = 'toast toast--' + (kind || 'ok');
+      var ico = kind === 'err' ? 'warn' : (kind === 'warn' ? 'warn' : 'ok');
+      el.innerHTML = icon(ico) + '<span>' + esc(msg) + '</span>';
+      zone.appendChild(el);
+      window.setTimeout(function () {
+        el.classList.add('is-out');
+        window.setTimeout(function () { if (el.parentNode) { el.parentNode.removeChild(el); } }, 220);
+      }, 2600);
+    }
+  };
+
+  /* SECTION: modal */
+  var Modal = {
+    lastFocus: null,
+    open: function (id) {
+      var ov = document.getElementById(id);
+      if (!ov) { return; }
+      Modal.lastFocus = document.activeElement;
+      ov.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      var first = ov.querySelector('input:not([type=hidden]), textarea, select, button');
+      if (first) { window.setTimeout(function () { first.focus(); }, 40); }
+    },
+    close: function (id) {
+      var ov = id ? document.getElementById(id) : null;
+      if (!ov) {
+        $$('.overlay.is-open').forEach(function (o) { o.classList.remove('is-open'); });
+      } else {
+        ov.classList.remove('is-open');
+      }
+      if (!$('.overlay.is-open')) { document.body.style.overflow = ''; }
+      if (Modal.lastFocus && Modal.lastFocus.focus) { Modal.lastFocus.focus(); Modal.lastFocus = null; }
+    }
+  };
+
+  /* SECTION: render-flow */
+  function renderFlow() {
+    var host = $('#flow-steps');
+    if (!host) { return; }
+    host.innerHTML = D.FLOW_STEPS.map(function (s) {
+      return '<button type="button" class="flow-step" style="--step-c:' + s.color + '" data-flow-action="' + esc(s.action) + '" data-tool="' + esc(s.tool) + '">' +
+        '<div class="step-top">' +
+          '<span class="step-ico">' + icon(s.icon) + '</span>' +
+          '<span class="step-no">' + esc(s.no) + '</span>' +
+        '</div>' +
+        '<div class="step-name">' + esc(s.name) + '</div>' +
+        '<p class="step-desc">' + esc(s.desc) + '</p>' +
+        '<span class="step-tool">' + esc(s.tool) + icon('arrow') + '</span>' +
+      '</button>';
+    }).join('');
+  }
+
+  /* SECTION: render-tools */
+  function renderTools() {
+    var host = $('#tool-grid');
+    if (!host) { return; }
+    host.innerHTML = D.TOOLS.map(function (t) {
+      var links = t.links.map(function (l) {
+        return '<a class="tool-link' + (l.main ? ' tool-link--main' : '') + '" href="' + esc(l.href) + '" target="_blank" rel="noopener noreferrer" data-ext="1">' +
+          '<span>' + esc(l.label) + '</span>' + icon('external') +
+        '</a>';
+      }).join('');
+      return '<article class="tool-card" style="--tool-c:' + t.color + '">' +
+        '<div class="tool-head">' +
+          '<span class="tool-badge">' + esc(t.badge) + '</span>' +
+          '<span style="min-width:0;">' +
+            '<span class="tool-name">' + esc(t.name) + '</span>' +
+            '<span class="tool-url">' + esc(t.url) + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<p class="tool-desc">' + esc(t.desc) + '</p>' +
+        '<div class="tool-links">' + links + '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  /* SECTION: render-quicksearch */
+  function renderQuickSearch() {
+    var btns = $('#qs-btns');
+    if (btns) {
+      btns.innerHTML = D.SEARCH_SOURCES.map(function (s) {
+        var cls = 'btn ' + (s.primary ? 'btn--primary' : '');
+        return '<button type="button" class="' + cls + '" data-search-source="' + esc(s.id) + '" data-primary-action="' + (s.primary ? 'quick-search' : '') + '">' +
+          icon('search') + esc(s.label) + '</button>';
+      }).join('');
+    }
+    var chips = $('#qs-chips');
+    if (chips) {
+      chips.innerHTML = D.PRESET_KEYWORDS.map(function (k) {
+        return '<button type="button" class="chip" data-preset="' + esc(k) + '">' + esc(k) + '</button>';
+      }).join('');
+    }
+  }
+
+  /* SECTION: filters-state */
+  var UI = { q: '', topic: 'all', status: 'all', sort: 'added-desc', expanded: {} };
+
+  function renderFilterOptions() {
+    var topics = Store.topics();
+    var ft = $('#filter-topic');
+    if (ft) {
+      var cur = UI.topic;
+      var opts = '<option value="all">全部课题</option>' + topics.map(function (t) {
+        return '<option value="' + esc(t) + '">' + esc(t) + '</option>';
+      }).join('');
+      ft.innerHTML = opts;
+      ft.value = topics.indexOf(cur) >= 0 || cur === 'all' ? cur : 'all';
+      UI.topic = ft.value;
+    }
+    var fs = $('#filter-status');
+    if (fs) {
+      var cs = UI.status;
+      fs.innerHTML = '<option value="all">全部进度</option>' + D.STATUSES.map(function (s) {
+        return '<option value="' + esc(s.id) + '">' + esc(s.label) + '</option>';
+      }).join('');
+      fs.value = validStatus(cs) || cs === 'all' ? cs : 'all';
+      UI.status = fs.value;
+    }
+    var dl = $('#topic-list');
+    if (dl) { dl.innerHTML = topics.map(function (t) { return '<option value="' + esc(t) + '"></option>'; }).join(''); }
+  }
+
+  function visiblePapers() {
+    var q = UI.q.trim().toLowerCase();
+    var list = Store.papers.filter(function (p) {
+      if (UI.topic !== 'all' && p.topic !== UI.topic) { return false; }
+      if (UI.status !== 'all' && p.status !== UI.status) { return false; }
+      if (!q) { return true; }
+      return [p.title, p.authors, p.journal, p.topic, p.doi, p.abstract, p.keywords, p.file, p.note, p.method, p.result, p.novelty, p.limit]
+        .some(function (f) { return String(f || '').toLowerCase().indexOf(q) >= 0; });
+    });
+
+    var ord = function (s) { return D.statusOf(s).order; };
+    list.sort(function (a, b) {
+      switch (UI.sort) {
+        case 'added-asc': return a.addedAt - b.addedAt;
+        case 'title': return String(a.title).localeCompare(String(b.title), 'zh-Hans-CN');
+        case 'year-desc':
+          var ya = parseInt(a.year, 10), yb = parseInt(b.year, 10);
+          if (isNaN(ya) && isNaN(yb)) { return b.addedAt - a.addedAt; }
+          if (isNaN(ya)) { return 1; }
+          if (isNaN(yb)) { return -1; }
+          return yb - ya;
+        case 'status':
+          var d = ord(b.status) - ord(a.status);
+          return d !== 0 ? d : b.addedAt - a.addedAt;
+        default: return b.addedAt - a.addedAt;
+      }
+    });
+    return list;
+  }
+
+  /* SECTION: render-stats */
+  function renderStats() {
+    var host = $('#stat-row');
+    if (!host) { return; }
+    var total = Store.papers.length;
+    var cells = [{ key: 'all', label: '全部', num: total }];
+    D.STATUSES.forEach(function (s) {
+      cells.push({ key: s.id, label: s.label, num: Store.papers.filter(function (p) { return p.status === s.id; }).length, color: s.color });
+    });
+    host.innerHTML = cells.map(function (c) {
+      var active = UI.status === c.key || (c.key === 'all' && UI.status === 'all');
+      return '<button type="button" class="stat-pill' + (active ? ' is-active' : '') + '" data-stat="' + esc(c.key) + '" ' +
+        'style="' + (c.color ? '--c-shelf:' + c.color + ';' : '') + '">' +
+        '<span class="stat-num">' + c.num + '</span>' +
+        '<span class="stat-lab">' + esc(c.label) + '</span>' +
+      '</button>';
+    }).join('');
+
+    var sc = $('#shelf-count');
+    if (sc) { sc.textContent = total ? '共 ' + total + ' 篇' : ''; }
+  }
+
+  /* SECTION: render-list */
+  /* 稳定序号：按加入时间升序编号，与当前筛选/排序无关。
+   * 这样"第四篇"永远是 4，筛课题或改排序都不会让编号跳动。
+   * 时间戳相同（同批导入）时按 id 兜底保证确定性。 */
+  function paperNumbers() {
+    var map = {};
+    var ordered = Store.papers.slice().sort(function (a, b) {
+      var d = (a.addedAt || 0) - (b.addedAt || 0);
+      return d !== 0 ? d : String(a.id).localeCompare(String(b.id));
+    });
+    ordered.forEach(function (p, i) { map[p.id] = i + 1; });
+    return map;
+  }
+
+  function blockHtml(label, text) {
+    if (!String(text || '').trim()) { return ''; }
+    return '<div class="paper-block">' +
+      '<span class="paper-block-label">' + esc(label) + '</span>' +
+      '<p class="paper-block-text">' + esc(text) + '</p>' +
+      '</div>';
+  }
+
+  function renderList() {
+    var host = $('#paper-list');
+    if (!host) { return; }
+    var list = visiblePapers();
+
+    if (!Store.papers.length) {
+      host.innerHTML = '<div class="empty">' + icon('inbox') +
+        '<h4>书架还是空的</h4>' +
+        '<p>先用上方「一键检索」去 X-MOL 找文献，挑中的点「收进书架」记下来，之后精读、做汇报都在这一页里跟进。</p>' +
+        '<button type="button" class="btn btn--primary" data-act="add">' + icon('plus') + '收进第一篇</button>' +
+        '</div>';
+      return;
+    }
+    if (!list.length) {
+      host.innerHTML = '<div class="empty">' + icon('search') +
+        '<h4>没有匹配的文献</h4>' +
+        '<p>换个关键词，或把课题 / 进度筛选调回「全部」。</p>' +
+        '<button type="button" class="btn" data-act="reset-filter">重置筛选</button>' +
+        '</div>';
+      return;
+    }
+
+    var nums = paperNumbers();
+
+    host.innerHTML = list.map(function (p) {
+      var st = D.statusOf(p.status);
+      var meta = [];
+      if (p.journal) { meta.push(esc(p.journal) + (p.year ? ' · ' + esc(p.year) : '')); }
+      else if (p.year) { meta.push(esc(p.year)); }
+      if (p.topic) { meta.push('课题：' + esc(p.topic)); }
+      if (p.addedAt) { meta.push('收录于 ' + esc(fmtDate(p.addedAt))); }
+
+      var nextSt = D.statusOf(D.nextStatus(p.status));
+      var tags = '<button type="button" class="tag tag--status tag--clickable" style="--st-c:' + st.color + ';background:' + st.color + '" ' +
+        'data-act="status" data-id="' + esc(p.id) + '" ' +
+        'title="点击切换到「' + esc(nextSt.label) + '」" aria-label="当前进度' + esc(st.label) + '，点击切换到' + esc(nextSt.label) + '">' +
+        esc(st.label) + icon('cycle') + '</button>';
+      if (p.topic) { tags = '<span class="tag tag--topic">' + esc(p.topic) + '</span>' + tags; }
+
+      /* 关键词 chips */
+      var kws = String(p.keywords || '').split(/[;；,，]/).map(function (k) { return k.trim(); }).filter(Boolean);
+      var kwHtml = kws.length
+        ? '<div class="kw-chips">' + kws.map(function (k) { return '<span class="kw-chip">' + esc(k) + '</span>'; }).join('') + '</div>'
+        : '';
+
+      /* 内容块：摘要 / 方法 / 其余要点（默认收起，点按钮原地展开） */
+      var blockDefs = [
+        ['摘要', p.abstract],
+        ['方法', p.method],
+        ['关键结论', p.result],
+        ['创新点', p.novelty],
+        ['不足与质疑', p.limit],
+        ['我的笔记', p.note]
+      ];
+      var filled = blockDefs.filter(function (b) { return String(b[1] || '').trim(); });
+      var hasKw = kws.length > 0;
+
+      /* 关键词紧跟摘要，其余要点排在后面 */
+      var orderedBlocks = [];
+      filled.forEach(function (b) {
+        orderedBlocks.push(blockHtml(b[0], b[1]));
+        if (b[0] === '摘要' && hasKw) { orderedBlocks.push(kwHtml); }
+      });
+      if (hasKw && !filled.some(function (b) { return b[0] === '摘要'; })) {
+        orderedBlocks.unshift(kwHtml);
+      }
+      var detailCount = filled.length + (hasKw ? 1 : 0);
+      var labelList = filled.map(function (b) { return b[0]; });
+      if (hasKw) {
+        var ai = labelList.indexOf('摘要');
+        labelList.splice(ai >= 0 ? ai + 1 : 0, 0, '关键词');
+      }
+
+      var isOpen = UI.expanded[p.id] === true;
+      var detailsId = 'detail-' + p.id;
+
+      var detailsInner = orderedBlocks.join('');
+
+      var toggleHtml = '';
+      if (detailCount) {
+        var summaryLabels = labelList.join(' · ');
+        toggleHtml = '<button type="button" class="toggle-btn" data-act="toggle" data-id="' + esc(p.id) + '" ' +
+          'aria-expanded="' + (isOpen ? 'true' : 'false') + '" aria-controls="' + esc(detailsId) + '" ' +
+          'title="' + (isOpen ? '收起内容' : '展开内容') + '">' +
+          icon(isOpen ? 'chevronUp' : 'chevronDown') +
+          '<span>' + (isOpen ? '收起' : '展开详情') + '</span>' +
+          '<span class="toggle-hint" data-hint="' + esc(summaryLabels) + '">' + (isOpen ? '' : esc(summaryLabels)) + '</span>' +
+          '</button>';
+      }
+
+      var detailsHtml = detailCount
+        ? '<div class="paper-details"' + (isOpen ? '' : ' hidden') + ' id="' + esc(detailsId) + '">' + detailsInner + '</div>'
+        : '';
+
+      var links = '';
+      if (p.file) {
+        links += '<a class="btn btn--sm btn--teal" href="' + esc(encodeURI(p.file)) + '" target="_blank" rel="noopener" title="打开与本页面同目录下的 PDF 文件">' + icon('file') + '打开 PDF</a>';
+      }
+      if (p.url) {
+        links += '<a class="btn btn--sm" href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer" data-ext="1">' + icon('external') + '在线原文</a>';
+      }
+      if (p.doi) {
+        links += '<a class="btn btn--sm" href="' + esc(doiUrl(p.doi)) + '" target="_blank" rel="noopener noreferrer" data-ext="1">' + icon('external') + 'DOI</a>';
+      }
+
+      var actions =
+        '<button type="button" class="btn btn--sm" data-act="edit" data-id="' + esc(p.id) + '">' + icon('edit') + '编辑</button>' +
+        '<button type="button" class="btn btn--sm btn--danger" data-act="del" data-id="' + esc(p.id) + '">' + icon('trash') + '删除</button>';
+
+      return '<article class="paper-item' + (isOpen ? ' is-open' : '') + '" data-paper="' + esc(p.id) + '">' +
+        '<div class="paper-top">' +
+          '<div class="paper-main">' +
+            '<h3 class="paper-title">' +
+              (nums[p.id] ? '<span class="paper-num">' + nums[p.id] + '.</span>' : '') +
+              '<span class="paper-title-text">' + esc(p.title || '（未填标题）') + '</span>' +
+            '</h3>' +
+            (p.authors ? '<p class="paper-authors">' + esc(p.authors) + '</p>' : '') +
+            (meta.length ? '<p class="paper-meta">' + meta.join('<span class="sep">|</span>') + '</p>' : '') +
+            (p.doi ? '<p class="paper-doi">DOI: ' + esc(p.doi) + '</p>' : '') +
+            '<div class="paper-tags">' + tags + '</div>' +
+            '<div class="paper-actions">' + links + actions + '</div>' +
+            toggleHtml +
+            detailsHtml +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  /* SECTION: form */
+  var formState = { editingId: null, status: 'todo' };
+
+  function renderStatusPicker() {
+    var host = $('#status-picker');
+    if (!host) { return; }
+    host.innerHTML = D.STATUSES.map(function (s) {
+      return '<button type="button" class="status-opt' + (formState.status === s.id ? ' is-on' : '') + '" ' +
+        'style="--st-c:' + s.color + '" data-status="' + esc(s.id) + '">' + esc(s.label) + '</button>';
+    }).join('');
+  }
+
+  function openAddForm(prefill) {
+    formState.editingId = null;
+    formState.status = 'todo';
+    var f = $('#paper-form');
+    if (f) { f.reset(); }
+    $$('.field.has-error').forEach(function (el) { el.classList.remove('has-error'); });
+    if (prefill) {
+      if (prefill.title) { $('#p-title').value = prefill.title; }
+      if (prefill.topic) { $('#p-topic').value = prefill.topic; }
+      if (prefill.doi) { $('#p-doi').value = prefill.doi; }
+      if (prefill.url) { $('#p-url').value = prefill.url; }
+    }
+    var mt = $('#modal-paper-title');
+    if (mt) { mt.textContent = '收进书架'; }
+    var bs = $('#btn-save-label');
+    if (bs) { bs.textContent = '保存'; }
+    renderStatusPicker();
+    Modal.open('overlay-paper');
+  }
+
+  function openEditForm(id) {
+    var p = Store.byId(id);
+    if (!p) { return; }
+    formState.editingId = id;
+    formState.status = p.status;
+    $$('.field.has-error').forEach(function (el) { el.classList.remove('has-error'); });
+    $('#p-title').value = p.title;
+    $('#p-authors').value = p.authors;
+    $('#p-journal').value = p.journal;
+    $('#p-year').value = p.year;
+    $('#p-topic').value = p.topic;
+    $('#p-doi').value = p.doi;
+    $('#p-url').value = p.url;
+    $('#p-file').value = p.file;
+    $('#p-abstract').value = p.abstract;
+    $('#p-keywords').value = p.keywords;
+    $('#p-note').value = p.note;
+    $('#p-method').value = p.method;
+    $('#p-result').value = p.result;
+    $('#p-novelty').value = p.novelty;
+    $('#p-limit').value = p.limit;
+    var mt = $('#modal-paper-title');
+    if (mt) { mt.textContent = '编辑文献'; }
+    renderStatusPicker();
+    Modal.open('overlay-paper');
+  }
+
+  function readForm() {
+    return {
+      title: $('#p-title').value.trim(),
+      authors: $('#p-authors').value.trim(),
+      journal: $('#p-journal').value.trim(),
+      year: $('#p-year').value.trim(),
+      topic: $('#p-topic').value.trim(),
+      doi: $('#p-doi').value.trim(),
+      url: safeUrl($('#p-url').value),
+      file: $('#p-file').value.trim(),
+      status: formState.status,
+      abstract: $('#p-abstract').value.trim(),
+      keywords: $('#p-keywords').value.trim(),
+      note: $('#p-note').value.trim(),
+      method: $('#p-method').value.trim(),
+      result: $('#p-result').value.trim(),
+      novelty: $('#p-novelty').value.trim(),
+      limit: $('#p-limit').value.trim()
+    };
+  }
+
+  function validateForm(data) {
+    var ok = true;
+    var ft = $('#f-title');
+    if (!data.title) { ft.classList.add('has-error'); ok = false; } else { ft.classList.remove('has-error'); }
+
+    var urlField = $('#p-url').closest('.field');
+    if (data.url && !isHttpUrl(data.url)) { urlField.classList.add('has-error'); ok = false; }
+    else { urlField.classList.remove('has-error'); }
+
+    var y = $('#p-year').value.trim();
+    if (y) {
+      var n = parseInt(y, 10);
+      var yf = $('#p-year').closest('.field');
+      if (isNaN(n) || n < 1900 || n > 2100) { yf.classList.add('has-error'); ok = false; } else { yf.classList.remove('has-error'); }
+    }
+    return ok;
+  }
+
+  function submitForm() {
+    var data = readForm();
+    if (!validateForm(data)) {
+      Toast.show('请检查一下标红的字段', 'err');
+      var bad = $('.field.has-error input, .field.has-error textarea');
+      if (bad) { bad.focus(); }
+      return;
+    }
+    if (formState.editingId) {
+      Store.update(formState.editingId, data);
+      Toast.show('已保存修改');
+    } else {
+      var p = normalize(data);
+      p.addedAt = Date.now();
+      p.picked = false;
+      if (!Store.add(p)) {
+        Toast.show('浏览器本地存储写入失败，数据可能无法保存', 'err');
+      } else {
+        Toast.show('已收进书架');
+      }
+    }
+    Modal.close('overlay-paper');
+    renderAll();
+  }
+
+  /* SECTION: confirm */
+  var confirmAction = null;
+
+  function styleConfirmOk(danger) {
+    var b = $('#btn-confirm-ok');
+    if (!b) { return; }
+    if (danger) {
+      b.style.background = 'var(--c-danger)';
+      b.style.borderColor = 'var(--c-danger)';
+      b.style.color = '#fff';
+    } else {
+      b.style.background = 'var(--c-search)';
+      b.style.borderColor = 'var(--c-search)';
+      b.style.color = '#fff';
+    }
+  }
+
+  function askConfirm(text, onOk, opts) {
+    opts = opts || {};
+    $('#confirm-text').innerHTML = text;
+    var title = $('#confirm-title');
+    if (title) { title.textContent = opts.title || '确认操作'; }
+
+    var okBtn = $('#btn-confirm-ok');
+    if (okBtn) { okBtn.textContent = opts.okLabel || '确认删除'; }
+    styleConfirmOk(opts.danger !== false);
+
+    var cancelBtn = $('#btn-confirm-cancel');
+    if (cancelBtn) { cancelBtn.textContent = opts.cancelLabel || '再想想'; }
+
+    var altBtn = $('#btn-confirm-alt');
+    if (altBtn) {
+      if (opts.altLabel && typeof opts.onAlt === 'function') {
+        altBtn.style.display = '';
+        altBtn.textContent = opts.altLabel;
+        if (opts.altDanger) {
+          altBtn.style.background = 'var(--c-danger)';
+          altBtn.style.borderColor = 'var(--c-danger)';
+          altBtn.style.color = '#fff';
+        } else {
+          altBtn.style.background = 'var(--c-surface)';
+          altBtn.style.borderColor = 'var(--c-line)';
+          altBtn.style.color = 'var(--c-ink)';
+        }
+        altBtn.onclick = function () {
+          var fn = opts.onAlt;
+          confirmAction = null;
+          Modal.close('overlay-confirm');
+          fn();
+        };
+      } else {
+        altBtn.style.display = 'none';
+        altBtn.onclick = null;
+      }
+    }
+
+    confirmAction = onOk;
+    Modal.open('overlay-confirm');
+    if (okBtn) { okBtn.focus(); }
+  }
+
+  /* SECTION: export-import */
+  function exportJson() {
+    if (!Store.papers.length) { Toast.show('书架是空的，没有可导出的内容', 'warn'); return; }
+    var payload = JSON.stringify({ v: 1, exportedAt: new Date().toISOString(), papers: Store.papers }, null, 2);
+    var blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = fmtDate(Date.now()).replace(/-/g, '');
+    a.href = url;
+    a.download = '文献书架备份-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    Toast.show('已导出 ' + Store.papers.length + ' 条记录');
+  }
+
+  function importJson(file) {
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed = Store.parse(String(reader.result));
+      if (!parsed) { Toast.show('文件格式不对，需要本页面导出的 JSON', 'err'); return; }
+      if (!parsed.length) { Toast.show('文件里没有文献记录', 'warn'); return; }
+      askConfirm('文件里有 <strong>' + parsed.length + '</strong> 条记录，请选择导入方式。',
+        function () { mergeImport(parsed); },
+        {
+          title: '导入文献记录',
+          okLabel: '合并（保留现有）',
+          altLabel: '替换（清空当前书架）',
+          cancelLabel: '取消',
+          danger: false,
+          altDanger: true,
+          onAlt: function () {
+            Store.papers = parsed;
+            Store.save();
+            renderAll();
+            Toast.show('已替换为文件中的 ' + parsed.length + ' 条记录');
+          }
+        });
+    };
+    reader.onerror = function () { Toast.show('读取文件失败，请重试', 'err'); };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function mergeImport(incoming) {
+    var seen = {};
+    Store.papers.forEach(function (p) { seen[String(p.title || '').trim().toLowerCase()] = true; });
+    var added = 0;
+    incoming.forEach(function (p) {
+      var key = String(p.title || '').trim().toLowerCase();
+      if (key && seen[key]) { return; }
+      var c = normalize(p);
+      c.id = 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + added;
+      Store.papers.unshift(c);
+      if (key) { seen[key] = true; }
+      added++;
+    });
+    Store.save();
+    renderAll();
+    Toast.show(added ? '已合并导入 ' + added + ' 条（重复标题已跳过）' : '没有新记录需要导入', added ? 'ok' : 'warn');
+  }
+
+  /* SECTION: clipboard */
+  function copyText(text, okMsg) {
+    if (!text) { Toast.show('没有可复制的内容', 'warn'); return; }
+    var done = function () { Toast.show(okMsg || '大纲已复制，去 WPS 粘贴即可'); };
+    var fail = function () { Toast.show('复制失败，请手动选中内容复制', 'err'); };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { legacyCopy(text, done, fail); });
+    } else {
+      legacyCopy(text, done, fail);
+    }
+  }
+  function legacyCopy(text, done, fail) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? done() : fail();
+    } catch (e) { fail(); }
+  }
+
+  /* SECTION: render-all */
+  function renderAll() {
+    renderFilterOptions();
+    renderStats();
+    renderList();
+  }
+
+  /* SECTION: events */
+  function bindEvents() {
+    /* 流程条 */
+    $('#flow-steps').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-flow-action]');
+      if (!btn) { return; }
+      var act = btn.getAttribute('data-flow-action');
+      if (act === 'focus-search') {
+        var inp = $('#qs-keyword');
+        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.setTimeout(function () { inp.focus(); }, 260);
+      } else if (act === 'open-add') {
+        openAddForm();
+      } else if (act.indexOf('open-tool:') === 0) {
+        var id = act.split(':')[1];
+        var t = D.TOOLS.filter(function (x) { return x.id === id; })[0];
+        if (t && t.links[0]) { openUrl(t.links[0].href); }
+      }
+    });
+
+    /* 一键检索 */
+    $('#qs-btns').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-search-source]');
+      if (!btn) { return; }
+      var src = D.SEARCH_SOURCES.filter(function (s) { return s.id === btn.getAttribute('data-search-source'); })[0];
+      if (!src) { return; }
+      var kw = ($('#qs-keyword').value || '').trim();
+      if (!kw) {
+        Toast.show('先输入检索关键词', 'warn');
+        $('#qs-keyword').focus();
+        return;
+      }
+      var url = src.tpl.replace('{kw}', encodeURIComponent(kw));
+      openUrl(url);
+    });
+
+    $('#qs-keyword').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var main = $('[data-search-source="xmol"]');
+        if (main) { main.click(); }
+      }
+    });
+
+    $('#qs-chips').addEventListener('click', function (e) {
+      var chip = e.target.closest('[data-preset]');
+      if (!chip) { return; }
+      $('#qs-keyword').value = chip.getAttribute('data-preset');
+      $('#qs-keyword').focus();
+      Toast.show('已填入关键词，点上方按钮开始检索');
+    });
+
+    /* 书架：新增 */
+    $('#btn-add').addEventListener('click', function () { openAddForm(); });
+
+    /* 书架：筛选与搜索 */
+    var st = null;
+    $('#shelf-search').addEventListener('input', function (e) {
+      var v = e.target.value;
+      if (st) { window.clearTimeout(st); }
+      st = window.setTimeout(function () { UI.q = v; renderList(); }, 130);
+    });
+    $('#filter-topic').addEventListener('change', function (e) { UI.topic = e.target.value; renderStats(); renderList(); });
+    $('#filter-status').addEventListener('change', function (e) { UI.status = e.target.value; renderStats(); renderList(); });
+    $('#sort-by').addEventListener('change', function (e) { UI.sort = e.target.value; renderList(); });
+
+    $('#stat-row').addEventListener('click', function (e) {
+      var pill = e.target.closest('[data-stat]');
+      if (!pill) { return; }
+      var key = pill.getAttribute('data-stat');
+      UI.status = key === 'all' ? 'all' : key;
+      $('#filter-status').value = UI.status;
+      renderStats();
+      renderList();
+    });
+
+    /* 书架：卡片操作（事件委托） */
+    $('#paper-list').addEventListener('click', function (e) {
+      var emptyBtn = e.target.closest('[data-act="add"]');
+      if (emptyBtn) { openAddForm(); return; }
+      var resetBtn = e.target.closest('[data-act="reset-filter"]');
+      if (resetBtn) {
+        UI.q = ''; UI.topic = 'all'; UI.status = 'all';
+        $('#shelf-search').value = '';
+        renderFilterOptions(); renderStats(); renderList();
+        return;
+      }
+      var el = e.target.closest('[data-act]');
+      if (!el) { return; }
+      var act = el.getAttribute('data-act');
+      var id = el.getAttribute('data-id');
+      var p = id ? Store.byId(id) : null;
+
+      if (act === 'toggle') {
+        var btn = el;
+        var card = btn.closest('.paper-item');
+        var panel = card ? card.querySelector('.paper-details') : null;
+        if (!panel) { return; }
+        var willOpen = panel.hasAttribute('hidden');
+        if (willOpen) { panel.removeAttribute('hidden'); } else { panel.setAttribute('hidden', ''); }
+        UI.expanded[id] = willOpen;
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        btn.title = willOpen ? '收起内容' : '展开内容';
+        var lbl = btn.querySelector('span');
+        if (lbl) { lbl.textContent = willOpen ? '收起' : '展开详情'; }
+        var hint = btn.querySelector('.toggle-hint');
+        if (hint) { hint.textContent = willOpen ? '' : (hint.getAttribute('data-hint') || ''); }
+        var ico = btn.querySelector('svg');
+        if (ico) { ico.innerHTML = D.ICONS[willOpen ? 'chevronUp' : 'chevronDown']; }
+        if (card) { card.classList.toggle('is-open', willOpen); }
+        return;
+      }
+      if (act === 'status') {
+        if (!p) { return; }
+        var ns = D.nextStatus(p.status);
+        Store.update(id, { status: ns });
+        renderAll();
+        Toast.show('进度已切换为「' + D.statusOf(ns).label + '」');
+        return;
+      }
+      if (act === 'edit') { openEditForm(id); return; }
+      if (act === 'del') {
+        if (!p) { return; }
+        askConfirm('确定从书架删除这篇吗？<br><strong>' + esc(truncate(p.title || '（未填标题）', 60)) + '</strong><br>删除后无法撤销，建议先导出备份。', function () {
+          Store.remove(id);
+          renderAll();
+          Toast.show('已从书架删除');
+        });
+        return;
+      }
+    });
+
+    /* 表单 */
+    $('#status-picker').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-status]');
+      if (!btn) { return; }
+      formState.status = btn.getAttribute('data-status');
+      renderStatusPicker();
+    });
+
+    $('#paper-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitForm();
+    });
+
+    $('#p-title').addEventListener('input', function () {
+      if (this.value.trim()) { $('#f-title').classList.remove('has-error'); }
+    });
+
+    /* 导出 / 导入 */
+    $('#btn-export').addEventListener('click', exportJson);
+    $('#btn-import').addEventListener('click', function () { $('#import-file').click(); });
+    $('#import-file').addEventListener('change', function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (f) { importJson(f); }
+      e.target.value = '';
+    });
+
+    /* 弹窗关闭 */
+    document.addEventListener('click', function (e) {
+      var closer = e.target.closest('[data-close]');
+      if (closer) { Modal.close(closer.getAttribute('data-close')); return; }
+      if (e.target.classList && e.target.classList.contains('overlay')) { Modal.close(e.target.id); }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $('.overlay.is-open')) { Modal.close(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        var inp = $('#qs-keyword');
+        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        inp.focus();
+        inp.select();
+      }
+    });
+
+    $('#btn-confirm-ok').addEventListener('click', function () {
+      var fn = confirmAction;
+      confirmAction = null;
+      Modal.close('overlay-confirm');
+      if (typeof fn === 'function') { fn(); }
+    });
+
+    /* 多标签页同步 */
+    window.addEventListener('storage', function (e) {
+      if (e.key !== D.STORAGE_KEY) { return; }
+      var parsed = e.newValue ? Store.parse(e.newValue) : null;
+      if (parsed) { Store.papers = parsed; renderAll(); }
+    });
+  }
+
+  /* SECTION: init */
+  function init() {
+    Store.load();
+    renderFlow();
+    renderTools();
+    renderQuickSearch();
+    renderStatusPicker();
+    renderAll();
+    bindEvents();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script>
+</body>
+</html>
